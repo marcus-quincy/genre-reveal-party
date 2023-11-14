@@ -31,3 +31,4 @@
 *.out
 *.app
 tracks_features.csv
+/output/
