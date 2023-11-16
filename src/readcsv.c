@@ -5,11 +5,6 @@
 
 #include "readcsv.h"
 
-#define MAX_LINE_LENGTH 4096  // highest line length we'll handle
-#define NUMBER_FIELDS 24      // number of fields in file
-#define LINE_COUNT 1204026    // number of lines in file
-#define MAX_FIELD_LENGTH 1024 // maximum size of a field in the file
-
 Point* readcsv() {
 	FILE* stream = fopen("input/tracks_features.csv", "r");
 
@@ -74,4 +69,24 @@ Point* readcsv() {
 	fclose(stream);
 
 	return points;
+}
+
+// return 1 upon success
+int writecsv(Point* points) {
+	FILE* stream = fopen("output/output.csv", "w");
+
+	if (stream == NULL) {
+		printf("ERROR: could not open file\n");
+		return 0;
+	}
+
+	fprintf(stream, "x,y,z,c\n");
+	for (int i = 0; i < LINE_COUNT - 1; i++) {
+		Point point = points[i];
+		fprintf(stream, "%lf,%lf,%lf,%d\n", point.x, point.y, point.z, point.cluster);
+	}
+
+	fclose(stream);
+
+	return 1;
 }
