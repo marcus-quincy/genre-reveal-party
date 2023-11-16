@@ -1,0 +1,10 @@
+#!/usr/bin/env sh
+
+[ -d input ] || mkdir input
+[ -d output ] || mkdir output
+
+if ! [ -e input/tracks_features.csv ]; then
+    echo please download tracks_features.csv from:
+    echo "  https://www.kaggle.com/datasets/rodolfofigueroa/spotify-12m-songs"
+    echo and put it in the input directory
+fi
