@@ -1,6 +1,6 @@
 #pragma once
 
-#include "utility.h"
+#include "point.h"
 
 // constants
 #define MAX_LINE_LENGTH 4096  // highest line length we'll handle

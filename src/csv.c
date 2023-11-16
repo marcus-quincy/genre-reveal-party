@@ -3,7 +3,7 @@
 #include <string.h>
 #include <float.h>
 
-#include "readcsv.h"
+#include "csv.h"
 
 Point* readcsv() {
 	FILE* stream = fopen("input/tracks_features.csv", "r");

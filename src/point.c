@@ -1,4 +1,4 @@
-#include "utility.h"
+#include "point.h"
 
 // Computes the (square) euclidean distance between this point and another
 double point_distance(Point p0, Point p1) {
