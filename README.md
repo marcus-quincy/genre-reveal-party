@@ -11,3 +11,13 @@ make serial
 ```
 
 The output will be placed in output/output.csv file.
+
+To run the shared cpu program:
+
+```sh
+./configure
+make shared_cpu
+./output/shared_cpu
+```
+
+The output will be placed in output/output.csv file.
