@@ -8,6 +8,8 @@
 int main() {
 	Point* points = readcsv();
 
+	if(points == NULL) return 1;
+
 	// Run k-means with 100 iterations and for 5 clusters
 	k_means_clustering(points, LINE_COUNT - 1, 100, 5);
 
