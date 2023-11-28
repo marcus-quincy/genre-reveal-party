@@ -6,14 +6,12 @@
 #include <time.h>
 #include <math.h>
 
-void k_means_clustering(Point* points, int points_size, int epochs, int k) {
-	// mpi meta information
-	int comm_sz;
-	int my_rank;
-
-	MPI_Init(NULL, NULL);
-	MPI_Comm_size(MPI_COMM_WORLD, &comm_sz);
-	MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
+void k_means_clustering(Point* points,
+			int points_size,
+			int epochs,
+			int k,
+			int my_rank,
+			int comm_sz) {
 
 	MPI_Datatype mpi_point_type = create_point_datatype();
 
@@ -143,8 +141,6 @@ void k_means_clustering(Point* points, int points_size, int epochs, int k) {
 	free(displs);
 	free(send_counts);
 	free(sub_points);
-
-	MPI_Finalize();
 }
 
 MPI_Datatype create_point_datatype() {
