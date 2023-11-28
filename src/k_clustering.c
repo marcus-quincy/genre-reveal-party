@@ -7,7 +7,8 @@
 // perform the c clustering
 void k_means_clustering(Point* points, int points_size, int epochs, int k) {
 	Point centroids[k];
-	srand(time(0));
+	//srand(time(0));
+	srand(42);
 	for (int i = 0; i < k; ++i) {
 		centroids[i] = points[rand() % points_size];
 	}
