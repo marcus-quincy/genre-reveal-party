@@ -15,6 +15,8 @@ void k_means_clustering(Point* points, int points_size, int epochs, int k) {
 	MPI_Comm_size(MPI_COMM_WORLD, &comm_sz);
 	MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
 
+	MPI_Datatype mpi_point_type = create_point_datatype();
+
 	/// distribute sections of the array
 	int sub_points_size = points_size / comm_sz;
 	if (points_size % comm_sz != 0) sub_points_size++;
@@ -39,8 +41,6 @@ void k_means_clustering(Point* points, int points_size, int epochs, int k) {
 
 	Point* sub_points = malloc(send_counts[my_rank] * sizeof(Point));
 
-	MPI_Datatype mpi_point_type = create_point_datatype();
-
 	MPI_Scatterv(points, send_counts, displs, mpi_point_type,
 		     sub_points, send_counts[my_rank], mpi_point_type,
 		     0, MPI_COMM_WORLD);
@@ -60,7 +60,7 @@ void k_means_clustering(Point* points, int points_size, int epochs, int k) {
 	for (int i = 0; i < epochs; ++i) {
 		// make sure the centroids are the same (take from rank 0)
 		MPI_Barrier(MPI_COMM_WORLD);
-		MPI_Bcast(centroids, k, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+		MPI_Bcast(centroids, k, mpi_point_type, 0, MPI_COMM_WORLD);
 
 		// For each centroid, compute distance from centroid to each point
 		// and update point's cluster if necessary
@@ -119,9 +119,9 @@ void k_means_clustering(Point* points, int points_size, int epochs, int k) {
 
 		MPI_Barrier(MPI_COMM_WORLD);
 		MPI_Reduce(sub_n_points, n_points, k, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
-		MPI_Reduce(sub_sum_x, sum_x, k, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
-		MPI_Reduce(sub_sum_y, sum_y, k, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
-		MPI_Reduce(sub_sum_z, sum_z, k, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
+		MPI_Reduce(sub_sum_x, sum_x, k, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+		MPI_Reduce(sub_sum_y, sum_y, k, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+		MPI_Reduce(sub_sum_z, sum_z, k, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
 
 		if (my_rank == 0) {
 			for (int cluster_id = 0; cluster_id < k; cluster_id++) {
