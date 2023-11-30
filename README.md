@@ -22,6 +22,20 @@ make shared_cpu
 ./output/shared_cpu
 ```
 
+## Shared GPU
+
+For CHPC:
+- module load nvhpc
+
+Dependencies:
+- nvhpc 
+
+```sh
+./configure
+make shared_gpu
+./output/shared_gpu
+```
+
 ## Distributed CPU
 
 Dependencies:
