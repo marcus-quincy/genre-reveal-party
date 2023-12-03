@@ -5,17 +5,19 @@
 #include "shared_gpu_k_clustering.h"
 
 extern void cuda_distances_kernel(Point* points_d, int points_size, Point* centroids_h, Point* centroids_d, int k);
-extern void cuda_setup(Point* points_h, Point** points_d, int points_size, Point** centroids_d, int k);
-extern void cuda_cleanup(Point* points_h, Point* points_d, int points_size, Point* centroids_d);
+extern void cuda_setup(Point* points_h, Point** points_d, int points_size, Point** centroids_d, int** n_points_d, double** sum_x_d, double** sum_y_d, double** sum_z_d, int k);
+extern void cuda_cleanup(Point* points_h, Point* points_d, int points_size, Point* centroids_d, int* n_points_d, double* sum_x_d, double* sum_y_d, double* sum_z_d);
 //extern void cuda_Kernel_2(Point* points_h, int points_size, int* n_points, double* sum_x, double* sum_y, double* sum_z, int k);
 
 // perform the c clustering
 void k_means_clustering(Point* points_h, int points_size, int epochs, int k) {
     Point* points_d;
     Point* centroids_d;
-    printf("cb4 %p\n", centroids_d);
-    cuda_setup(points_h, &points_d, points_size, &centroids_d, k);
-    printf("cb4 %p\n", centroids_d);
+    int* n_points_d;
+    double* sum_x_d;
+    double* sum_y_d;
+    double* sum_z_d;
+    cuda_setup(points_h, &points_d, points_size, &centroids_d, &n_points_d, &sum_x_d, &sum_y_d, &sum_z_d, k);
     Point* centroids_h = malloc(sizeof(Point) * k);
 
     srand(42);
@@ -26,31 +28,13 @@ void k_means_clustering(Point* points_h, int points_size, int epochs, int k) {
     for (int i = 0; i < epochs; ++i) {
         // For each centroid, compute distance from centroid to each point
         // and update point's cluster if necessary
-
-        // we might need centroids to be in GPU memory...
-
-        /*
-          for (int cluster_id = 0; cluster_id < k; ++cluster_id){
-          Point c = centroids_h[cluster_id];
-          cuda_Kernel_1(points_h, points_size, c, cluster_id, points_d, c_d);
-          }
-        */
-        printf("calling kernel\n");
         cuda_distances_kernel(points_d, points_size, centroids_h, centroids_d, k);
-        printf("done kernel\n");
 
         // Create vectors to keep track of data needed to compute means
         int n_points[k];
         double sum_x[k];
         double sum_y[k];
         double sum_z[k];
-        for (int j = 0; j < k; ++j) {
-            n_points[j] = 0;
-            sum_x[j] = 0.0;
-            sum_y[j] = 0.0;
-            sum_z[j] = 0.0;
-        }
-
 
         // XXX: for now, just do this in serial. the above loop is much more computation heavy anyways!
         // XXX: this is going to fail, because we aren't copying points back to. This MUST also be
@@ -79,5 +63,5 @@ void k_means_clustering(Point* points_h, int points_size, int epochs, int k) {
     }
 
     free(centroids_h);
-    cuda_cleanup(points_h, points_d, points_size, centroids_d);
+    cuda_cleanup(points_h, points_d, points_size, centroids_d, n_points_d, sum_x_d, sum_y_d, sum_z_d);
 }

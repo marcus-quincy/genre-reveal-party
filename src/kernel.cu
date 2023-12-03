@@ -43,19 +43,80 @@ void distances_k(Point* points_d, int points_size, Point* centroids_d, int k) {
     }
 }
 
-extern "C" void cuda_setup(Point* points_h, Point** points_d, int points_size, Point** centroids_d, int k) {
+// Do sum and reduce of the points x, y, and z values. This is done in 1 block, but could
+// probably be sped up if a multi block reduction algorithm were implemented
+__global__
+void sum_reduce_kernel(Point* points_d, int points_size, int* n_points_d, double* sum_x_d, double* sum_y_d, double* sum_z_d, int k) {
+    /// initialize variables
+    int idx = threadIdx.x;
+
+    /* FIXME
+    __shared__ int n_points[blockDim.x][k];
+    __shared__ double sum_x[blockDim.x][k];
+    __shared__ double sum_y[blockDim.x][k];
+    __shared__ double sum_z[blockDim.x][k];
+    */
+    int n_points[1024][5];
+    double sum_x[1024][5];
+    double sum_y[1024][5];
+    double sum_z[1024][5];
+
+    for (int cluster_id = 0; cluster_id < k; cluster_id++) {
+        n_points[idx][cluster_id] = 0;
+        sum_x[idx][cluster_id] = 0;
+        sum_y[idx][cluster_id] = 0;
+        sum_z[idx][cluster_id] = 0;
+    }
+
+    // compute the local sum
+    for (int i = 0; i < points_size; i += blockDim.x) {
+        Point* p = &points_d[i];
+        n_points[idx][p->cluster] += 1;
+        sum_x[idx][p->cluster] += p->x;
+        sum_y[idx][p->cluster] += p->y;
+        sum_z[idx][p->cluster] += p->z;
+    }
+
+    __syncthreads();
+
+    // do the reduction
+    for (int size = blockDim.x / 2; size > 0; size /= 2) {
+        if (idx < size) {
+            for (int cluster_id = 0; cluster_id < k; cluster_id++) {
+                n_points[idx][cluster_id] += n_points[idx + size][cluster_id];
+                sum_x[idx][cluster_id] += sum_x[idx + size][cluster_id];
+                sum_y[idx][cluster_id] += sum_y[idx + size][cluster_id];
+                sum_z[idx][cluster_id] += sum_z[idx + size][cluster_id];
+            }
+        }
+    }
+
+    // put into output buffer
+    if (idx == 0) {
+        for (int cluster_id = 0; cluster_id < k; ++cluster_id) {
+            n_points_d[cluster_id] = n_points[0][cluster_id];
+            sum_x_d[cluster_id] = sum_x[0][cluster_id];
+            sum_y_d[cluster_id] = sum_y[0][cluster_id];
+            sum_z_d[cluster_id] = sum_z[0][cluster_id];
+        }
+    }
+}
+
+extern "C" void cuda_setup(Point* points_h, Point** points_d, int points_size, Point** centroids_d, int** n_points_d, double** sum_x_d, double** sum_y_d, double** sum_z_d, int k) {
     //Allocate device pointers and copy them to the device
     checkCuda(cudaMalloc((void **) points_d, sizeof(Point)*points_size));
-    checkCuda(cudaDeviceSynchronize());
-    printf("allocating centroids_d\n");
     checkCuda(cudaMalloc((void **) centroids_d, sizeof(Point)*k)); // just allocate the memory now, we will memcpy every kernel call
+    checkCuda(cudaMalloc((void **) n_points_d, sizeof(int)*k));
+    checkCuda(cudaMalloc((void **) sum_x_d, sizeof(double)*k));
+    checkCuda(cudaMalloc((void **) sum_y_d, sizeof(double)*k));
+    checkCuda(cudaMalloc((void **) sum_z_d, sizeof(double)*k));
     checkCuda(cudaDeviceSynchronize());
 
     checkCuda(cudaMemcpy(*points_d, points_h, sizeof(Point)*points_size, cudaMemcpyHostToDevice));
     checkCuda(cudaDeviceSynchronize());
 }
 
-extern "C" void cuda_cleanup(Point* points_h, Point* points_d, int points_size, Point* centroids_d) {
+extern "C" void cuda_cleanup(Point* points_h, Point* points_d, int points_size, Point* centroids_d, int* n_points_d, double* sum_x_d, double* sum_y_d, double* sum_z_d) {
     //copy device points to host points
     checkCuda(cudaMemcpy(points_h, points_d, sizeof(Point)*points_size, cudaMemcpyDeviceToHost));
     checkCuda(cudaDeviceSynchronize());
@@ -63,65 +124,6 @@ extern "C" void cuda_cleanup(Point* points_h, Point* points_d, int points_size, 
     //Free device pointers
     checkCuda(cudaFree(points_d));
     checkCuda(cudaFree(centroids_d));
-    checkCuda(cudaDeviceSynchronize());
-}
-
-// Function that launches the CUDA kernel
-extern "C" void cuda_distances_kernel(Point* points_d, int points_size, Point* centroids_h, Point* centroids_d, int k) {
-    // XXX: why is it 2d?
-    dim3 DimGrid(ceil(points_size/32.0));
-    dim3 DimBlock(32);
-
-    // copy the centroids over
-    //checkCuda(cudaMalloc((void **) &centroids_d, sizeof(Point)*k)); // just allocate the memory now, we will memcpy every kernel call
-    checkCuda(cudaMemcpy(centroids_d, centroids_h, sizeof(Point)*k, cudaMemcpyHostToDevice));
-    //checkCuda(cudaMemcpy(points_d, points_h, sizeof(Point)*points_size, cudaMemcpyHostToDevice));
-    checkCuda(cudaDeviceSynchronize());
-
-    //Launch kernel
-    distances_k<<<DimGrid, DimBlock>>>(points_d, points_size, centroids_d, k);
-    //checkCuda(cudaFree(centroids_d));
-    checkCuda(cudaDeviceSynchronize());
-}
-
-/*
-// Function that launches the CUDA kernel
-extern "C" void cuda_Kernel_2(Point* points_h, int points_size, int* n_points, double* sum_x, double* sum_y, double* sum_z, int k) {
-    Point* points_d;
-    int* n_points_d;
-    double* sum_x_d;
-    double* sum_y_d;
-    double* sum_z_d;
-    int new_points_size = sqrt(points_size); 
-
-    //Allocate device pointers and copy them to the device
-    checkCuda(cudaMalloc((void **) &points_d, sizeof(Point)*points_size));
-    checkCuda(cudaMalloc((void **) &n_points_d, sizeof(int)*k));
-    checkCuda(cudaMalloc((void **) &sum_x_d, sizeof(double)*k));
-    checkCuda(cudaMalloc((void **) &sum_y_d, sizeof(double)*k));
-    checkCuda(cudaMalloc((void **) &sum_z_d, sizeof(double)*k));
-    checkCuda(cudaDeviceSynchronize());
-
-    checkCuda(cudaMemcpy(points_d, points_h, sizeof(Point)*points_size, cudaMemcpyHostToDevice));
-    checkCuda(cudaMemcpy(n_points_d, n_points, sizeof(int)*k, cudaMemcpyHostToDevice));
-    checkCuda(cudaMemcpy(sum_x_d, sum_x, sizeof(double)*k, cudaMemcpyHostToDevice));
-    checkCuda(cudaMemcpy(sum_y_d, sum_y, sizeof(double)*k, cudaMemcpyHostToDevice));
-    checkCuda(cudaMemcpy(sum_z_d, sum_z, sizeof(double)*k, cudaMemcpyHostToDevice));
-    checkCuda(cudaDeviceSynchronize());
-    
-    dim3 DimGrid(ceil(new_points_size/32.0), ceil(new_points_size/32.0), 1);
-    dim3 DimBlock(32, 32, 1);
-
-    //Launch the kernel
-    my_Kernel_2<<<DimGrid, DimBlock>>>(DBL_MAX, points_d, points_size, n_points_d, sum_x_d, sum_y_d, sum_z_d);
-    checkCuda(cudaDeviceSynchronize());
-    
-    //copy points from device to host
-    checkCuda(cudaMemcpy(points_h, points_d, sizeof(Point)*points_size, cudaMemcpyDeviceToHost));  
-    checkCuda(cudaDeviceSynchronize());
-    
-    //Free Allocated pointers
-    checkCuda(cudaFree(points_d));
     checkCuda(cudaFree(n_points_d));
     checkCuda(cudaFree(sum_x_d));
     checkCuda(cudaFree(sum_y_d));
@@ -129,4 +131,27 @@ extern "C" void cuda_Kernel_2(Point* points_h, int points_size, int* n_points, d
     checkCuda(cudaDeviceSynchronize());
 }
 
-*/
+// Function that launches the CUDA kernel
+extern "C" void cuda_distances_kernel(Point* points_d, int points_size, Point* centroids_h, Point* centroids_d, int k) {
+    dim3 DimGrid(ceil(points_size/32.0));
+    dim3 DimBlock(32);
+
+    // copy the centroids over
+    checkCuda(cudaMemcpy(centroids_d, centroids_h, sizeof(Point)*k, cudaMemcpyHostToDevice));
+    checkCuda(cudaDeviceSynchronize());
+
+    //Launch kernel
+    distances_k<<<DimGrid, DimBlock>>>(points_d, points_size, centroids_d, k);
+    checkCuda(cudaDeviceSynchronize());
+}
+
+//void sum_reduce_kernel(Point* points_d, int points_size, int* n_points_d, double* sum_x_d, double* sum_y_d, double* sum_z_d, int k) {
+extern "C" void cuda_sum_kernel(Point* points_d, int points_size, int* n_points_d, double* sum_x_d, double* sum_y_d, double* sum_z_d, int k) {
+    int block_size = 1024; // only using 1 block so make this bigger
+
+    // do the computation
+    sum_reduce_kernel<<<1, block_size>>>(points_d, points_size, n_points_d, sum_x_d, sum_y_d, sum_z_d, k);
+    checkCuda(cudaDeviceSynchronize());
+
+    // TODO: copy the _d arrays back out to CPU
+}
