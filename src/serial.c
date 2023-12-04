@@ -10,8 +10,7 @@ int main() {
 
 	if(points == NULL) return 1;
 
-	// Run k-means with 100 iterations and for 5 clusters
-	k_means_clustering(points, LINE_COUNT - 1, 100, 5);
+	k_means_clustering(points, LINE_COUNT - 1);
 
 	writecsv(points);
 

@@ -38,6 +38,9 @@ make shared_gpu
 
 ## Distributed CPU
 
+On CHPC:
+- module load openmpi
+
 Dependencies:
 - mpi
 

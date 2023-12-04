@@ -6,8 +6,6 @@
 #include "point.h"
 #include "shared_gpu_k_clustering.h"
 
-
-
 int main() {
 	Point* points = readcsv();
 
@@ -19,7 +17,8 @@ int main() {
     // Record the start time
     gettimeofday(&start, NULL);
 
-	k_means_clustering(points, LINE_COUNT - 1, 100, 5);// Record the end time
+	k_means_clustering(points, LINE_COUNT - 1);
+    // Record the end time
     gettimeofday(&end, NULL);
 
     // Calculate the elapsed time in seconds
@@ -31,8 +30,6 @@ int main() {
 	writecsv(points);
 
 	free(points);
-
-
 
 	return 0;
 }
