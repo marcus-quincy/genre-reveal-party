@@ -24,7 +24,7 @@ make shared_cpu
 
 ## Shared GPU
 
-For CHPC:
+On CHPC:
 - module load nvhpc
 
 Dependencies:
@@ -48,4 +48,15 @@ Dependencies:
 ./configure
 make distributed_cpu
 mpiexec -n 2 ./output/distributed_cpu
+```
+
+## Visualization
+
+Dependencies:
+- matplotlib
+- pandas
+- python
+
+```sh
+python main.py
 ```
