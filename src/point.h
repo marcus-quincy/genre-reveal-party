@@ -7,3 +7,5 @@ typedef struct Point {
 } Point;
 
 double point_distance(Point p0, Point p1);
+
+void print_point(Point p);

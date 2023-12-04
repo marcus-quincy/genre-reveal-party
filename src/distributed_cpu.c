@@ -4,6 +4,7 @@
 #include "point.h"
 #include "csv.h"
 #include "distributed_cpu_k_clustering.h"
+#include "constants.h"
 
 int main() {
 	Point* points;
@@ -21,8 +22,7 @@ int main() {
 		if (points == NULL) return 1;
 	}
 
-	// Run k-means with 100 iterations and for 5 clusters
-	k_means_clustering(points, LINE_COUNT - 1, 100, 5, my_rank, comm_sz);
+	k_means_clustering(points, LINE_COUNT - 1, my_rank, comm_sz);
 
 	if (my_rank == 0) {
 		writecsv(points);
