@@ -10,15 +10,15 @@
 #define checkCuda(ans) { gpuAssert((ans), __FILE__, __LINE__); }
 inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=true)
 {
-   if (code != cudaSuccess)
-   {
-      fprintf(stderr,"GPUassert: %s %s %d\n", cudaGetErrorString(code), file, line);
-      if (abort) exit(code);
-   }
+    if (code != cudaSuccess)
+    {
+        fprintf(stderr,"GPUassert: %s %s %d\n", cudaGetErrorString(code), file, line);
+        if (abort) exit(code);
+    }
 }
 
 //Clustering Calculation
-__global__ 
+__global__
 void distances_k(Point* points_d, int points_size, Point* centroids_d, int k) {
     //Get the index for the current point to work with
     int index = threadIdx.x + blockIdx.x * blockDim.x;
@@ -27,7 +27,7 @@ void distances_k(Point* points_d, int points_size, Point* centroids_d, int k) {
       Potential improvement would be to not interate cluster_id -> k and instead have a separate thread
       per cluster_id. Not sure if this would yield any performance gains though. It also creates race
       conditions that have to be dealt with.
-     */
+    */
 
     if(index < points_size) {
         //printf("idx %d\n", index);
@@ -51,15 +51,16 @@ void sum_reduce_kernel(Point* points_d, int points_size, int* n_points_d, double
     int idx = threadIdx.x;
 
     /* FIXME
-    __shared__ int n_points[blockDim.x][k];
-    __shared__ double sum_x[blockDim.x][k];
-    __shared__ double sum_y[blockDim.x][k];
-    __shared__ double sum_z[blockDim.x][k];
+       __shared__ int n_points[blockDim.x][k];
+       __shared__ double sum_x[blockDim.x][k];
+       __shared__ double sum_y[blockDim.x][k];
+       __shared__ double sum_z[blockDim.x][k];
     */
-    int n_points[1024][5];
-    double sum_x[1024][5];
-    double sum_y[1024][5];
-    double sum_z[1024][5];
+
+    __shared__ int n_points[256][5];
+    __shared__ double sum_x[256][5];
+    __shared__ double sum_y[256][5];
+    __shared__ double sum_z[256][5];
 
     for (int cluster_id = 0; cluster_id < k; cluster_id++) {
         n_points[idx][cluster_id] = 0;
@@ -68,13 +69,17 @@ void sum_reduce_kernel(Point* points_d, int points_size, int* n_points_d, double
         sum_z[idx][cluster_id] = 0;
     }
 
+    // XXX it hates something in this for loop
+    //printf("dim %d  ",blockDim.x);
     // compute the local sum
-    for (int i = 0; i < points_size; i += blockDim.x) {
+    for (int i = idx; i < points_size; i += blockDim.x) {
         Point* p = &points_d[i];
         n_points[idx][p->cluster] += 1;
         sum_x[idx][p->cluster] += p->x;
         sum_y[idx][p->cluster] += p->y;
         sum_z[idx][p->cluster] += p->z;
+
+        p->min_dist = DBL_MAX;
     }
 
     __syncthreads();
@@ -89,11 +94,13 @@ void sum_reduce_kernel(Point* points_d, int points_size, int* n_points_d, double
                 sum_z[idx][cluster_id] += sum_z[idx + size][cluster_id];
             }
         }
+        __syncthreads();
     }
 
     // put into output buffer
     if (idx == 0) {
         for (int cluster_id = 0; cluster_id < k; ++cluster_id) {
+            //printf("updating n  points to %d\n",n_points_d[cluster_id]);
             n_points_d[cluster_id] = n_points[0][cluster_id];
             sum_x_d[cluster_id] = sum_x[0][cluster_id];
             sum_y_d[cluster_id] = sum_y[0][cluster_id];
@@ -120,7 +127,7 @@ extern "C" void cuda_cleanup(Point* points_h, Point* points_d, int points_size, 
     //copy device points to host points
     checkCuda(cudaMemcpy(points_h, points_d, sizeof(Point)*points_size, cudaMemcpyDeviceToHost));
     checkCuda(cudaDeviceSynchronize());
-    
+
     //Free device pointers
     checkCuda(cudaFree(points_d));
     checkCuda(cudaFree(centroids_d));
@@ -145,13 +152,31 @@ extern "C" void cuda_distances_kernel(Point* points_d, int points_size, Point* c
     checkCuda(cudaDeviceSynchronize());
 }
 
-//void sum_reduce_kernel(Point* points_d, int points_size, int* n_points_d, double* sum_x_d, double* sum_y_d, double* sum_z_d, int k) {
-extern "C" void cuda_sum_kernel(Point* points_d, int points_size, int* n_points_d, double* sum_x_d, double* sum_y_d, double* sum_z_d, int k) {
-    int block_size = 1024; // only using 1 block so make this bigger
+extern "C" void cuda_sum_kernel(Point* points_d,
+                                int points_size,
+                                int* n_points_h,
+                                double* sum_x_h,
+                                double* sum_y_h,
+                                double* sum_z_h,
+                                int* n_points_d,
+                                double* sum_x_d,
+                                double* sum_y_d,
+                                double* sum_z_d,
+                                int k) {
+    int block_size = 256; // only using 1 block so make this bigger
 
     // do the computation
+    checkCuda(cudaDeviceSynchronize());
+    // we know we get here
+    //printf("b4");
+//(points_d, points_size, n_points_d, sum_x_d, sum_y_d, sum_z_d, k)
     sum_reduce_kernel<<<1, block_size>>>(points_d, points_size, n_points_d, sum_x_d, sum_y_d, sum_z_d, k);
+    //printf("after"); // and here
     checkCuda(cudaDeviceSynchronize());
 
-    // TODO: copy the _d arrays back out to CPU
+    checkCuda(cudaMemcpy(n_points_h, n_points_d, sizeof(int)*k, cudaMemcpyDeviceToHost));
+    checkCuda(cudaMemcpy(sum_x_h, sum_x_d, sizeof(double)*k, cudaMemcpyDeviceToHost));
+    checkCuda(cudaMemcpy(sum_y_h, sum_y_d, sizeof(double)*k, cudaMemcpyDeviceToHost));
+    checkCuda(cudaMemcpy(sum_z_h, sum_z_d, sizeof(double)*k, cudaMemcpyDeviceToHost));
+    checkCuda(cudaDeviceSynchronize());
 }

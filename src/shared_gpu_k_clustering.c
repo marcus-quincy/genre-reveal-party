@@ -7,7 +7,17 @@
 extern void cuda_distances_kernel(Point* points_d, int points_size, Point* centroids_h, Point* centroids_d, int k);
 extern void cuda_setup(Point* points_h, Point** points_d, int points_size, Point** centroids_d, int** n_points_d, double** sum_x_d, double** sum_y_d, double** sum_z_d, int k);
 extern void cuda_cleanup(Point* points_h, Point* points_d, int points_size, Point* centroids_d, int* n_points_d, double* sum_x_d, double* sum_y_d, double* sum_z_d);
-//extern void cuda_Kernel_2(Point* points_h, int points_size, int* n_points, double* sum_x, double* sum_y, double* sum_z, int k);
+extern void cuda_sum_kernel(Point* points_d,
+                            int points_size,
+                            int* n_points_h,
+                            double* sum_x_h,
+                            double* sum_y_h,
+                            double* sum_z_h,
+                            int* n_points_d,
+                            double* sum_x_d,
+                            double* sum_y_d,
+                            double* sum_z_d,
+                            int k);
 
 // perform the c clustering
 void k_means_clustering(Point* points_h, int points_size, int epochs, int k) {
@@ -28,36 +38,28 @@ void k_means_clustering(Point* points_h, int points_size, int epochs, int k) {
     for (int i = 0; i < epochs; ++i) {
         // For each centroid, compute distance from centroid to each point
         // and update point's cluster if necessary
+        //fprintf(stderr,"epoch %d\n", i);
+        for (int ii = 0; ii < k; ii++) {
+		//print_point(centroids_h[ii]);
+        }
+
         cuda_distances_kernel(points_d, points_size, centroids_h, centroids_d, k);
 
         // Create vectors to keep track of data needed to compute means
-        int n_points[k];
-        double sum_x[k];
-        double sum_y[k];
-        double sum_z[k];
+        int n_points_h[k];
+        double sum_x_h[k];
+        double sum_y_h[k];
+        double sum_z_h[k];
 
-        // XXX: for now, just do this in serial. the above loop is much more computation heavy anyways!
-        // XXX: this is going to fail, because we aren't copying points back to. This MUST also be
-        //  done in GPU so we can keep points over there
-        //Kernel2
-        //cuda_Kernel_2(points_h, points_size, n_points, sum_x, sum_y, sum_z, k);
-        for (int j = 0; j < points_size; j++) {
-            Point* p = &points_h[j];
-            n_points[p->cluster] += 1;
-            sum_x[p->cluster] += p->x;
-            sum_y[p->cluster] += p->y;
-            sum_z[p->cluster] += p->z;
-
-            // reset distance
-            p->min_dist = DBL_MAX;
-        }
+        cuda_sum_kernel(points_d, points_size, n_points_h, sum_x_h, sum_y_h, sum_z_h, n_points_d, sum_x_d, sum_y_d, sum_z_d, k);
 
         for (int cluster_id = 0; cluster_id < k; cluster_id++) {
             Point* c = &centroids_h[cluster_id];
-            if (n_points[cluster_id] != 0) {
-                c->x = sum_x[cluster_id] / n_points[cluster_id];
-                c->y = sum_y[cluster_id] / n_points[cluster_id];
-                c->z = sum_z[cluster_id] / n_points[cluster_id];
+            //printf("n_points_h %d\n",n_points_h[cluster_id]);
+            if (n_points_h[cluster_id] != 0) {
+                c->x = sum_x_h[cluster_id] / n_points_h[cluster_id];
+                c->y = sum_y_h[cluster_id] / n_points_h[cluster_id];
+                c->z = sum_z_h[cluster_id] / n_points_h[cluster_id];
             }
         }
     }
