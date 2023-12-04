@@ -10,5 +10,13 @@ distributed_cpu: src/distributed_cpu.c src/distributed_cpu_k_clustering.c $(CORE
 	mpicc -g -Wall -std=c99 -o output/distributed_cpu src/distributed_cpu.c src/distributed_cpu_k_clustering.c $(CORE_FILES)
 shared_gpu: src/shared_gpu.c src/shared_gpu_k_clustering.c src/kernel.cu $(CORE_FILES) $(HEADER_FILES)
 	nvcc src/shared_gpu.c src/shared_gpu_k_clustering.c $(CORE_FILES) src/kernel.cu -o output/shared_gpu
+distributed_gpu: src/shared_gpu.c src/shared_gpu_k_clustering.c src/kernel.cu $(CORE_FILES) $(HEADER_FILES)
+	mpicc -g -Wall -std=c99 -c src/point.c -o output/point.o
+	mpicc -g -Wall -std=c99 -c src/csv.c -o output/csv.o
+	mpicc -g -Wall -std=c99 -c src/distributed_gpu_k_clustering.c -o output/distributed_gpu_k_clustering.o
+	mpicc -g -Wall -std=c99 -c src/distributed_gpu.c -o output/distributed_gpu_main.o
+	nvcc -c src/kernel.cu -o output/kernel.o
+# -lstdc++ is used so __gxx_personality_v0 is defined. otherwise linker throws error. see https://stackoverflow.com/questions/329059/what-is-gxx-personality-v0-for
+	mpicc -g -Wall output/*.o -o output/distributed_gpu -lcudart -lstdc++
 clean:
 	rm -f output/*
