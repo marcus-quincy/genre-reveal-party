@@ -64,3 +64,13 @@ This requires having enough GPUs allocated.
 make distributed_gpu
 mpiexec -n 2 ./output/distributed_gpu
 ```
+## Visualization
+
+Dependencies:
+- matplotlib
+- pandas
+- python
+
+```sh
+python main.py
+```
