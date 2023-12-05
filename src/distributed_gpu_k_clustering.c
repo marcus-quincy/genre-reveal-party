@@ -124,5 +124,14 @@ void k_means_clustering(Point* points_h, int points_size, int my_rank, int comm_
 		}
     }
 
-    cuda_cleanup(points_h, points_d, points_size, centroids_d, n_points_d, sum_x_d, sum_y_d, sum_z_d);
+    cuda_cleanup(sub_points_h, points_d, send_counts[my_rank], centroids_d, n_points_d, sum_x_d, sum_y_d, sum_z_d);
+
+    /// send all the results back to rank 0 and update
+    MPI_Gatherv(sub_points_h, send_counts[my_rank], mpi_point_type,
+		points_h, send_counts, displs, mpi_point_type,
+		0, MPI_COMM_WORLD);
+
+    free(displs);
+    free(send_counts);
+    free(sub_points_h);
 }
