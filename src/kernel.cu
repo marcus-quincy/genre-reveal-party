@@ -18,12 +18,6 @@ void distances_k(Point* points_d, int points_size, Point* centroids_d) {
     //Get the index for the current point to work with
     int index = threadIdx.x + blockIdx.x * blockDim.x;
 
-    /*
-      Potential improvement would be to not interate cluster_id -> k and instead have a separate thread
-      per cluster_id. Not sure if this would yield any performance gains though. It also creates race
-      conditions that have to be dealt with.
-    */
-
     if(index < points_size) {
         Point* p = &points_d[index];
         for (int cluster_id = 0; cluster_id < K_CLUSTERS; cluster_id++) {
@@ -38,8 +32,7 @@ void distances_k(Point* points_d, int points_size, Point* centroids_d) {
     }
 }
 
-// Do sum and reduce of the points x, y, and z values. This is done in 1 block, but could
-// probably be sped up if a multi block reduction algorithm were implemented
+// Do sum and reduce of the points x, y, and z values in one block
 __global__
 void sum_reduce_kernel(Point* points_d, int points_size, int* n_points_d, double* sum_x_d, double* sum_y_d, double* sum_z_d) {
     /// initialize variables
