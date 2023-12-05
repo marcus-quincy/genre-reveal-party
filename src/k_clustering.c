@@ -1,12 +1,13 @@
 #include <float.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include <time.h>
 
 #include "k_clustering.h"
 #include "constants.h"
 
 // perform the c clustering
-void k_means_clustering(Point* points, int points_size) {
+void serial_k_means_clustering(Point* points, int points_size) {
 	Point centroids[K_CLUSTERS];
 	//srand(time(0));
 	srand(42);
