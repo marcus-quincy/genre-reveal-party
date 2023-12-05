@@ -24,11 +24,11 @@ make shared_cpu
 
 ## Shared GPU
 
-On CHPC:
-- module load nvhpc
+For CHPC:
+- module load cuda/12.1
 
 Dependencies:
-- nvhpc 
+- cuda
 
 ```sh
 ./configure
@@ -39,7 +39,7 @@ make shared_gpu
 ## Distributed CPU
 
 On CHPC:
-- module load openmpi
+- module load intel-mpi
 
 Dependencies:
 - mpi
@@ -50,6 +50,20 @@ make distributed_cpu
 mpiexec -n 2 ./output/distributed_cpu
 ```
 
+## Distributed GPU
+
+On CHPC:
+- module load cuda/12.1
+- module load gcc/8.5
+- module load intel-mpi
+
+This requires having enough GPUs allocated.
+
+```sh
+./configure
+make distributed_gpu
+mpiexec -n 2 ./output/distributed_gpu
+```
 ## Visualization
 
 Dependencies:

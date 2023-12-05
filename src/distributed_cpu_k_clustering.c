@@ -5,9 +5,10 @@
 #include <math.h>
 
 #include "distributed_cpu_k_clustering.h"
+#include "mpi_util.h"
 #include "constants.h"
 
-void k_means_clustering(Point* points,
+void dist_cpu_k_means_clustering(Point* points,
 			int points_size,
 			int my_rank,
 			int comm_sz) {
@@ -140,30 +141,4 @@ void k_means_clustering(Point* points,
 	free(displs);
 	free(send_counts);
 	free(sub_points);
-}
-
-MPI_Datatype create_point_datatype() {
-	MPI_Datatype point_type;
-	int count = 5;
-	int blocklengths[] = { 1, 1, 1, 1, 1 };
-	MPI_Aint displacements[] = {
-		offsetof(Point, x),
-		offsetof(Point, y),
-		offsetof(Point, z),
-		offsetof(Point, cluster),
-		offsetof(Point, min_dist)
-	};
-
-	MPI_Datatype types[] = {
-		MPI_DOUBLE,
-		MPI_DOUBLE,
-		MPI_DOUBLE,
-		MPI_INT,
-		MPI_DOUBLE
-	};
-
-	MPI_Type_create_struct(count, blocklengths, displacements, types, &point_type);
-	MPI_Type_commit(&point_type);
-
-	return point_type;
 }

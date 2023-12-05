@@ -20,7 +20,7 @@ extern void cuda_sum_kernel(Point* points_d,
                             double* sum_z_d);
 
 // perform the c clustering
-void k_means_clustering(Point* points_h, int points_size) {
+void share_gpu_k_means_clustering(Point* points_h, int points_size) {
     Point* points_d;
     Point* centroids_d;
     int* n_points_d;

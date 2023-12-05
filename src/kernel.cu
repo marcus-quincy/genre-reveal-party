@@ -1,6 +1,5 @@
 // -*- mode: c -*-
 
-#include <cstdlib>
 #include <stdio.h>
 #include <float.h>
 

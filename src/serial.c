@@ -4,15 +4,21 @@
 #include "csv.h"
 #include "point.h"
 #include "k_clustering.h"
+#include "validation.h"
+#include "constants.h"
 
 int main() {
 	Point* points = readcsv();
 
 	if(points == NULL) return 1;
 
-	k_means_clustering(points, LINE_COUNT - 1);
+	serial_k_means_clustering(points, LINE_COUNT - 1);
 
-	writecsv(points);
+#ifdef RUN_VALIDATION
+    validate(points, LINE_COUNT - 1);
+#endif
+
+    writecsv(points);
 
 	free(points);
 

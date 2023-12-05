@@ -2,4 +2,4 @@
 
 #include "point.h"
 
-void k_means_clustering(Point* points, int points_size);
+void share_cpu_k_means_clustering(Point* points, int points_size);
