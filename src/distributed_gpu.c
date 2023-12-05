@@ -6,6 +6,8 @@
 #include "csv.h"
 #include "point.h"
 #include "distributed_gpu_k_clustering.h"
+#include "validation.h"
+#include "constants.h"
 
 int main() {
 	Point* points;
@@ -28,7 +30,7 @@ int main() {
 	// Record the start time
 	gettimeofday(&start, NULL);
 
-	k_means_clustering(points, LINE_COUNT - 1, my_rank, comm_sz);
+	dist_gpu_k_means_clustering(points, LINE_COUNT - 1, my_rank, comm_sz);
 	// Record the end time
 	gettimeofday(&end, NULL);
 	// Calculate the elapsed time in seconds
@@ -37,7 +39,13 @@ int main() {
 	// Print the elapsed time
 	printf("Elapsed time: %f seconds\n", elapsed_time);
 
-	if (my_rank == 0) {
+#ifdef RUN_VALIDATION
+    if (my_rank == 0) {
+        validate(points, LINE_COUNT - 1);
+    }
+#endif
+
+    if (my_rank == 0) {
 		writecsv(points);
 	}
 

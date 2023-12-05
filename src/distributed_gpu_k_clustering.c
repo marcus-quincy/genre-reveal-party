@@ -21,13 +21,13 @@ extern void cuda_sum_kernel(Point* points_d,
                             double* sum_z_d);
 
 // perform the c clustering
-void k_means_clustering(Point* points_h, int points_size, int my_rank, int comm_sz) {
-    Point* points_d;
-    Point* centroids_d;
-    int* n_points_d;
-    double* sum_x_d;
-    double* sum_y_d;
-    double* sum_z_d;
+void dist_gpu_k_means_clustering(Point* points_h, int points_size, int my_rank, int comm_sz) {
+	Point* points_d;
+	Point* centroids_d;
+	int* n_points_d;
+	double* sum_x_d;
+	double* sum_y_d;
+	double* sum_z_d;
 
 	MPI_Datatype mpi_point_type = create_point_datatype();
 
@@ -60,7 +60,7 @@ void k_means_clustering(Point* points_h, int points_size, int my_rank, int comm_
 		     0, MPI_COMM_WORLD);
 
 	/// Initialize centroids
-    Point centroids_h[K_CLUSTERS];
+	Point centroids_h[K_CLUSTERS];
 	if (my_rank == 0)
 	{
 		//srand(time(0));
@@ -70,32 +70,32 @@ void k_means_clustering(Point* points_h, int points_size, int my_rank, int comm_
 		}
 	}
 
-    /// only transfer the subset of points to GPU
-    cuda_setup(sub_points_h, &points_d, send_counts[my_rank], &centroids_d, &n_points_d, &sum_x_d, &sum_y_d, &sum_z_d);
-    //cuda_setup(points_h, &points_d, points_size, &centroids_d, &n_points_d, &sum_x_d, &sum_y_d, &sum_z_d);
+	/// only transfer the subset of points to GPU
+	cuda_setup(sub_points_h, &points_d, send_counts[my_rank], &centroids_d, &n_points_d, &sum_x_d, &sum_y_d, &sum_z_d);
+	//cuda_setup(points_h, &points_d, points_size, &centroids_d, &n_points_d, &sum_x_d, &sum_y_d, &sum_z_d);
 
-    for (int i = 0; i < N_EPOCHS; ++i) {
-        /// ensure each rank's centroids are in sync
+	for (int i = 0; i < N_EPOCHS; ++i) {
+		/// ensure each rank's centroids are in sync
 		MPI_Barrier(MPI_COMM_WORLD);
 		MPI_Bcast(centroids_h, K_CLUSTERS, mpi_point_type, 0, MPI_COMM_WORLD);
 
-        // For each centroid, compute distance from centroid to each point
-        // and update point's cluster if necessary
-        cuda_distances_kernel(points_d, send_counts[my_rank], centroids_h, centroids_d);
+		// For each centroid, compute distance from centroid to each point
+		// and update point's cluster if necessary
+		cuda_distances_kernel(points_d, send_counts[my_rank], centroids_h, centroids_d);
 
-        // Create vectors to keep track of data needed to compute means
-        int sub_n_points_h[K_CLUSTERS];
-        double sub_sum_x_h[K_CLUSTERS];
-        double sub_sum_y_h[K_CLUSTERS];
-        double sub_sum_z_h[K_CLUSTERS];
+		// Create vectors to keep track of data needed to compute means
+		int sub_n_points_h[K_CLUSTERS];
+		double sub_sum_x_h[K_CLUSTERS];
+		double sub_sum_y_h[K_CLUSTERS];
+		double sub_sum_z_h[K_CLUSTERS];
 
-        /// get the GPU local sums
-        cuda_sum_kernel(points_d, send_counts[my_rank], sub_n_points_h, sub_sum_x_h, sub_sum_y_h, sub_sum_z_h, n_points_d, sum_x_d, sum_y_d, sum_z_d);
+		/// get the GPU local sums
+		cuda_sum_kernel(points_d, send_counts[my_rank], sub_n_points_h, sub_sum_x_h, sub_sum_y_h, sub_sum_z_h, n_points_d, sum_x_d, sum_y_d, sum_z_d);
 
-        int n_points_h[K_CLUSTERS];
-        double sum_x_h[K_CLUSTERS];
-        double sum_y_h[K_CLUSTERS];
-        double sum_z_h[K_CLUSTERS];
+		int n_points_h[K_CLUSTERS];
+		double sum_x_h[K_CLUSTERS];
+		double sum_y_h[K_CLUSTERS];
+		double sum_z_h[K_CLUSTERS];
 		if (my_rank == 0) {
 			for (int j = 0; j < K_CLUSTERS; ++j) {
 				n_points_h[j] = 0;
@@ -105,7 +105,7 @@ void k_means_clustering(Point* points_h, int points_size, int my_rank, int comm_
 			}
 		}
 
-        /// add the sums from all the GPUs
+		/// add the sums from all the GPUs
 		MPI_Barrier(MPI_COMM_WORLD);
 		MPI_Reduce(sub_n_points_h, n_points_h, K_CLUSTERS, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
 		MPI_Reduce(sub_sum_x_h, sum_x_h, K_CLUSTERS, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
@@ -122,16 +122,16 @@ void k_means_clustering(Point* points_h, int points_size, int my_rank, int comm_
 				}
 			}
 		}
-    }
+	}
 
-    cuda_cleanup(sub_points_h, points_d, send_counts[my_rank], centroids_d, n_points_d, sum_x_d, sum_y_d, sum_z_d);
+	cuda_cleanup(sub_points_h, points_d, send_counts[my_rank], centroids_d, n_points_d, sum_x_d, sum_y_d, sum_z_d);
 
-    /// send all the results back to rank 0 and update
-    MPI_Gatherv(sub_points_h, send_counts[my_rank], mpi_point_type,
-		points_h, send_counts, displs, mpi_point_type,
-		0, MPI_COMM_WORLD);
+	/// send all the results back to rank 0 and update
+	MPI_Gatherv(sub_points_h, send_counts[my_rank], mpi_point_type,
+		    points_h, send_counts, displs, mpi_point_type,
+		    0, MPI_COMM_WORLD);
 
-    free(displs);
-    free(send_counts);
-    free(sub_points_h);
+	free(displs);
+	free(send_counts);
+	free(sub_points_h);
 }

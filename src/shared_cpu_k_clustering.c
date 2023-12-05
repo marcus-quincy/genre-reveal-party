@@ -7,7 +7,7 @@
 #include "constants.h"
 
 // perform the c clustering
-void k_means_clustering(Point* points, int points_size) {
+void share_cpu_k_means_clustering(Point* points, int points_size) {
 	Point centroids[K_CLUSTERS];
 	//srand(time(0));
 	srand(42);
