@@ -72,7 +72,6 @@ void dist_gpu_k_means_clustering(Point* points_h, int points_size, int my_rank, 
 
 	/// only transfer the subset of points to GPU
 	cuda_setup(sub_points_h, &points_d, send_counts[my_rank], &centroids_d, &n_points_d, &sum_x_d, &sum_y_d, &sum_z_d);
-	//cuda_setup(points_h, &points_d, points_size, &centroids_d, &n_points_d, &sum_x_d, &sum_y_d, &sum_z_d);
 
 	for (int i = 0; i < N_EPOCHS; ++i) {
 		/// ensure each rank's centroids are in sync

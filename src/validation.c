@@ -29,7 +29,9 @@ void compare(Point* serial_points, Point* other_points, int points_size) {
             print_point(s);
             fprintf(stderr, "\tactual: ");
             print_point(o);
-            break;
+            return;
         }
     }
+
+    fprintf(stderr, "No validation issues found.\n");
 }
