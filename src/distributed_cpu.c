@@ -23,7 +23,20 @@ int main() {
 		if (points == NULL) return 1;
 	}
 
+#ifdef OUTPUT_TIME
+	// sometimes it takes a second or 2 for the second rank to start, so have a barrier for timing purposes
+	MPI_Barrier(MPI_COMM_WORLD);
+	double start = MPI_Wtime();
+#endif
+
 	dist_cpu_k_means_clustering(points, LINE_COUNT - 1, my_rank, comm_sz);
+
+#ifdef OUTPUT_TIME
+	double end = MPI_Wtime();
+	if (my_rank == 0) {
+		printf("Elapsed time: %lf seconds\n", end - start);
+	}
+#endif
 
 #ifdef RUN_VALIDATION
     if (my_rank == 0) {

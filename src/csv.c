@@ -6,6 +6,7 @@
 #include "csv.h"
 
 Point* readcsv() {
+    printf("reading file at input/tracks_features.csv\n");
 	FILE* stream = fopen("input/tracks_features.csv", "r");
 
 	if (stream == NULL) {
@@ -48,12 +49,6 @@ Point* readcsv() {
 		}
 
 		if (first_row_p) {
-			/*
-			printf("%s\n", split_line[9]);
-			printf("%s\n", split_line[10]);
-			printf("%s\n", split_line[14]);
-			*/
-
 			first_row_p = 0;
 			continue;
 		}
@@ -73,6 +68,7 @@ Point* readcsv() {
 
 // return 1 upon success
 int writecsv(Point* points) {
+    printf("writing output to file: output/output.csv\n");
 	FILE* stream = fopen("output/output.csv", "w");
 
 	if (stream == NULL) {
